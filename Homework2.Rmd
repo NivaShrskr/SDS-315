@@ -197,6 +197,8 @@ ggplot(metro) + geom_point(aes(x=temperature,y=boarding,color=weekend), size =.5
 ```
 This scatter plot reveals the relationship between boardings and temperature, with the data faceted by hour of the day and color-coded based on whether the day is a weekend or a weekday. When we hold both the hour of the day and weekend status constant, the plot clearly indicates that temperature has a noticeable effect on ridership. As the temperature increases, boardings generally tend to rise as well, especially during midday hours. This pattern suggests that UT students are more likely to ride the bus in warmer temperatures, likely because the weather is more conducive to outdoor activities or travel. On weekends, the correlation between temperature and ridership is still visible, but it appears less pronounced compared to weekdays. This difference could be due to altered routines on weekends, where students may have different travel needs or flexibility in their schedules. Overall, temperature plays a significant role in determining bus ridership, with warmer weather encouraging higher usage, particularly in the afternoon when temperatures tend to peak.
 
+\newpage
+
 
 # **Question 4**
 
