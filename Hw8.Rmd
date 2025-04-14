@@ -1,0 +1,173 @@
+---
+title: "Homework 8 SDS315"
+author: "Niva Shirsekar, EID: ns38287"
+date: "https://github.com/NivaShrskr/SDS-315"
+output:
+  html_document:
+    keep_tex: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(boot)
+
+```
+
+# Problem 1: regression warm up
+
+### Part A
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+creatinine <- read.csv("creatinine.csv")
+model <- lm(creatclear ~ age, data = creatinine)
+summary(model)
+
+
+
+```
+
+
+**Regression Equation: 147.813 + (-0.61982 x age)**
+
+creatclear = 147.813 + (-0.61982 x 55)
+creatclear = 147.813 - 34.0901 = 113.72 mL/min
+
+I plugged age = 55 into the regression equation to predict the expected creatinine clearance rate.
+
+### Part B
+
+The slope is -0.61982 mL/min/yr. The slope of the regression line tells us that for each additional year of age, creatinine clearance decreased by approximately 0.62 mL/min. 
+
+### Part C
+
+40-year-old with observed clearance of 135:
+creatclear of 40 = 147.813 + (- 0.61982 x 40) 
+creatclear of 40 = 147.813 - 24.7928 = 123.0202
+residual of 40 = 135 - 123.0202 ~ 11.98
+
+60-year-old with observed clearance of 112:
+creatclear of 60 = 147.813 + (-0.61982 x 60) 
+creatclear of 60 = 147.813 - 37.1892 = 110.6238
+residual of 60 = 112 - 110.6238 = 1.38
+
+To figure out who’s healthier for their age, I compared each person’s creatinine clearance rate to what we’d expect based on their age using the regression model.
+
+For a 40-year-old, the predicted rate is 123.02 mL/min, and for a 60-year-old, it’s 110.62 mL/min. Their actual clearance rates are 135 and 112. So, the residuals are 135 − 123.02 = 11.98 for the 40-year-old, and 112 − 110.62 = 1.38 for the 60-year-old.
+
+Since the 40-year-old’s residual is higher and positive, it means they’re doing much better than what is typical for their age. So, the 40-year-old is healthier relative to their age group.
+
+
+# Problem 2: Modeling disease growth
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+
+covid <- read.csv("covid.csv")
+
+# Log-transform deaths
+covid <- covid %>%
+  filter(deaths > 0) %>%
+  mutate(log_deaths = log(deaths))
+
+# Separate by country
+italy <- filter(covid, country == "Italy")
+spain <- filter(covid, country == "Spain")
+
+# Fit linear models on log scale
+fit_italy <- lm(log_deaths ~ days_since_first_death, data = italy)
+fit_spain <- lm(log_deaths ~ days_since_first_death, data = spain)
+
+summary(fit_italy)
+summary(fit_spain)
+
+
+```
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+
+b_italy <- coef(fit_italy)[2]
+b_spain <- coef(fit_spain)[2]
+
+dt_italy <- log(2) / b_italy
+dt_spain <- log(2) / b_spain
+
+```
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+
+boot_growth <- function(data, indices) {
+  d <- data[indices, ]
+  model <- lm(log_deaths ~ days_since_first_death, data = d)
+  coef(model)[2]  
+}
+
+#italy
+set.seed(123)
+boot_italy <- boot(italy, boot_growth, R = 1000)
+boot.ci(boot_italy, type = "perc")
+
+#spain
+set.seed(123)
+boot_spain <- boot(spain, boot_growth, R = 1000)
+boot.ci(boot_spain, type = "perc")
+
+dt_italy_boot <- log(2) / boot_italy$t
+dt_spain_boot <- log(2) / boot_spain$t
+quantile(dt_italy_boot, c(0.025, 0.975))
+quantile(dt_spain_boot, c(0.025, 0.975))
+
+```
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(covid, aes(x = days_since_first_death, y = deaths, color = country)) +
+  geom_line(linewidth = 1) +
+  labs(
+    title = "Daily COVID-19 Deaths Over Time",
+    x = "Days Since First Death",
+    y = "Deaths per Day",
+    color = "Country"
+  ) +
+  theme_minimal()
+
+```
+
+To look at how things were unfolding early in the pandemic, I used exponential growth models to track COVID-19 deaths in Italy and Spain. I regressed the log of daily death counts on the number of days since each country reported its first death.
+
+For Italy, the daily growth rate came out to 0.183 (SE = 0.0103), with a 95% bootstrap confidence interval from 0.158 to 0.208. That means deaths were rising by about 18.3% per day. The doubling time was 3.8 days, with a 95% CI of 3.33 to 4.38. The model explained 89.5% of the variation in log deaths (R² = 0.895), and the growth rate was very statistically significant (p < 0.001).
+
+Spain’s growth rate was even higher—0.276 (SE = 0.0191), with a 95% CI of 0.233 to 0.320. That means deaths were doubling roughly every 2.5 days (CI: 2.17 to 2.97). The model fit was strong here too (R² = 0.889), and again, the p-value was under 0.001.
+
+So overall, both countries saw rapid exponential growth in deaths early on, but Spain’s faster rate and shorter doubling time suggest a more intense early outbreak. This highlights how important early action is in a pandemic.
+
+# Problem 3: price elasticity of demand
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+milk <- read_csv('milk.csv')
+milk <- milk %>%
+  mutate(log_price = log(price),
+         log_sales = log(sales))
+model <- lm(log_sales ~ log_price, data = milk)
+summary(model)
+
+```
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+
+boot_fun <- function(data, indices) {
+  sample_data <- data[indices, ]
+  coef(lm(log_sales ~ log_price, data = sample_data))[2]
+}
+
+set.seed(123)
+boot_out <- boot(data = milk, statistic = boot_fun, R = 1000)
+
+boot.ci(boot_out, type = "perc")
+
+
+```
+
+To estimate the price elasticity of demand for milk, I used a log-log regression model based on the form Q = K * P^B, which becomes linear when you take logs: log(Q) = log(K) + B * log(P). I ran a regression of log(sales) on log(price) using data from the stated preference study. The estimated elasticity (B) was -1.62, which means that a 1% increase in the price of milk is associated with about a 1.62% drop in quantity demanded. I also bootstrapped the regression 1,000 times to get a 95% confidence interval. The interval came out to (-1.77, -1.44), which shows that demand is elastic across that range. 
+
+
